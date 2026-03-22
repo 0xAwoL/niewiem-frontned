@@ -1,21 +1,33 @@
 'use client'
 import { usePortfolio, STRATEGIES } from '@/hooks/usePortfolio'
 
+const EPS = 1e-9
+
 export default function Dashboard() {
-  const { portfolio, walletUsdc, vaultUsdc } = usePortfolio()
+  const { portfolio, walletUsdc, mockStrategyVaults } = usePortfolio()
   const hasOpenPosition = !!portfolio && portfolio.amountRaw > 0
-  const strategy = portfolio?.strategy || 'stableYield'
-  const config = STRATEGIES.find(s => s.id === strategy)
+  const vaultTotal = hasOpenPosition && portfolio ? portfolio.amountUsdc : 0
 
-  const apy = config ? (config.apyBps / 100).toFixed(1) : '0.0'
-  const strategyName = hasOpenPosition && config ? config.name : '—'
+  const activeStrategies = STRATEGIES.filter((s) => mockStrategyVaults[s.id] > EPS)
 
-  const vaultPosition =
-    hasOpenPosition && vaultUsdc !== null
-      ? vaultUsdc
-      : hasOpenPosition && portfolio
-        ? portfolio.amountUsdc
-        : 0
+  let apyWeighted = 0
+  let apyWeightSum = 0
+  for (const s of STRATEGIES) {
+    const slice = mockStrategyVaults[s.id]
+    if (slice > EPS) {
+      apyWeighted += slice * s.apyBps
+      apyWeightSum += slice
+    }
+  }
+  const blendedApyBps = apyWeightSum > EPS ? apyWeighted / apyWeightSum : 0
+  const blendedApy = (blendedApyBps / 100).toFixed(1)
+
+  const strategyHeader =
+    activeStrategies.length === 0
+      ? '—'
+      : activeStrategies.length === 1
+        ? activeStrategies[0].name
+        : `MULTI · ${activeStrategies.length}`
 
   const walletFree = walletUsdc ?? 0
 
@@ -30,14 +42,27 @@ export default function Dashboard() {
     })
   }
 
-  if (hasOpenPosition && config) {
-    for (const alloc of config.allocations) {
-      holdingRows.push({
-        label: alloc.label,
-        value: vaultPosition * (alloc.pct / 100),
-        pct: `${alloc.pct}%`,
-        color: alloc.color,
-      })
+  const strategiesToRender =
+    hasOpenPosition && vaultTotal > EPS
+      ? activeStrategies.length > 0
+        ? activeStrategies
+        : STRATEGIES.filter((s) => s.id === portfolio?.strategy)
+      : []
+
+  if (strategiesToRender.length > 0 && vaultTotal > EPS) {
+    for (const s of strategiesToRender) {
+      const slice =
+        activeStrategies.length > 0
+          ? mockStrategyVaults[s.id]
+          : vaultTotal
+      for (const alloc of s.allocations) {
+        holdingRows.push({
+          label: alloc.label,
+          value: slice * (alloc.pct / 100),
+          pct: `${alloc.pct}%`,
+          color: alloc.color,
+        })
+      }
     }
   }
 
@@ -52,7 +77,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 border-b border-[#1a1a1a]">
         <div className="p-[12px_16px] border-b md:border-b-0 md:border-r border-[#1a1a1a] flex flex-col gap-[8px]">
           <div className="text-[#444] uppercase">VAULT_USDC</div>
-          <div className="text-white text-[14px]">{vaultPosition.toFixed(2)} USDC</div>
+          <div className="text-white text-[14px]">{vaultTotal.toFixed(2)} USDC</div>
         </div>
         <div className="p-[12px_16px] border-b md:border-b-0 md:border-r border-[#1a1a1a] flex flex-col gap-[8px]">
           <div className="text-[#444] uppercase">DEPOSITS</div>
@@ -60,13 +85,13 @@ export default function Dashboard() {
         </div>
         <div className="p-[12px_16px] flex flex-col gap-[8px]">
           <div className="text-[#444] uppercase">LIVE_APY</div>
-          <div className="text-white text-[14px]">{hasOpenPosition ? `${apy}%` : '0.0%'}</div>
+          <div className="text-white text-[14px]">{hasOpenPosition ? `${blendedApy}%` : '0.0%'}</div>
         </div>
       </div>
 
       <div className="py-[8px] px-[16px] text-white uppercase border-b border-[#1a1a1a] flex justify-between items-center mt-[32px] border-t">
         <span>CURRENT_HOLDINGS</span>
-        <span className="text-[#444] uppercase">{strategyName}</span>
+        <span className="text-[#444] uppercase">{strategyHeader}</span>
       </div>
 
       <div className="grid grid-cols-[1fr_1fr_60px] border-b border-[#1a1a1a] h-[24px] items-center text-center text-[#444] uppercase text-[9px] shrink-0">

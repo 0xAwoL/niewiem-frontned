@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import AppKitProvider from "@/components/appkit-provider"
+import { ReapToaster } from "@/components/reap-toaster"
 import { cn } from "@/lib/utils";
 
 const geistMonoHeading = Geist_Mono({ subsets: ['latin'], variable: '--font-heading' });
@@ -27,7 +28,10 @@ export default function RootLayout({
     >
       <body>
         <ThemeProvider>
-          <AppKitProvider>{children}</AppKitProvider>
+          <AppKitProvider>
+            {children}
+            <ReapToaster />
+          </AppKitProvider>
         </ThemeProvider>
       </body>
     </html>

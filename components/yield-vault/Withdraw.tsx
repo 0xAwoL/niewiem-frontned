@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { usePortfolio } from '@/hooks/usePortfolio'
 
 export default function Withdraw() {
@@ -10,10 +11,19 @@ export default function Withdraw() {
 
   const handleWithdraw = async () => {
     if (!amount || isNaN(Number(amount))) return
+    const id = toast.loading('Confirm withdrawal in wallet…')
     try {
-      await withdraw(Number(amount))
+      const sig = await withdraw(Number(amount))
+      toast.dismiss(id)
+      const short = sig.length > 16 ? `${sig.slice(0, 6)}…${sig.slice(-6)}` : sig
+      toast.success('Withdrawal confirmed', {
+        description: short,
+      })
       setAmount('')
-    } catch (err) {
+    } catch (err: unknown) {
+      toast.dismiss(id)
+      const msg = err instanceof Error ? err.message : 'Transaction failed'
+      toast.error('Withdrawal failed', { description: msg })
       console.error(err)
     }
   }

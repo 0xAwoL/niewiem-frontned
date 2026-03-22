@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Strategies } from '@/components/yield-vault/Strategies'
 import { usePortfolio, StrategyId } from '@/hooks/usePortfolio'
 
@@ -17,10 +18,19 @@ export default function Deposit() {
 
   const handleDeposit = async () => {
     if (!amount || isNaN(Number(amount))) return
+    const id = toast.loading('Confirm deposit in wallet…')
     try {
-      await deposit(getStrategyId(strategy), Number(amount))
+      const sig = await deposit(getStrategyId(strategy), Number(amount))
+      toast.dismiss(id)
+      const short = sig.length > 16 ? `${sig.slice(0, 6)}…${sig.slice(-6)}` : sig
+      toast.success('Deposit confirmed', {
+        description: short,
+      })
       setAmount('')
-    } catch (err) {
+    } catch (err: unknown) {
+      toast.dismiss(id)
+      const msg = err instanceof Error ? err.message : 'Transaction failed'
+      toast.error('Deposit failed', { description: msg })
       console.error(err)
     }
   }

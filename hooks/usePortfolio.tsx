@@ -12,6 +12,12 @@ import { useAppKitProvider, useAppKitAccount } from "@reown/appkit/react";
 import { Program, AnchorProvider, BN } from "@coral-xyz/anchor";
 import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import {
+    addMockStrategyDeposit,
+    emptyMockStrategyVaults,
+    readMockStrategyVaults,
+    reconcileMockStrategyVaults,
+} from "@/lib/mockStrategyHoldings";
 
 const USDC_DECIMALS = 1_000_000;
 import IDL from "../idl/mock_portfolio.json";
@@ -83,9 +89,10 @@ function strategyToAnchor(id: StrategyId): object {
 }
 
 function anchorToStrategyId(raw: object): StrategyId {
-    if ("stableYield" in raw) return "stableYield";
-    if ("conservative" in raw) return "conservative";
-    if ("growthFocus" in raw) return "growthFocus";
+    const r = raw as Record<string, unknown>;
+    if ("stableYield" in r || "stable_yield" in r || "StableYield" in r) return "stableYield";
+    if ("conservative" in r || "Conservative" in r) return "conservative";
+    if ("growthFocus" in r || "growth_focus" in r || "GrowthFocus" in r) return "growthFocus";
     return "stableYield";
 }
 
@@ -101,7 +108,7 @@ export interface PortfolioState {
 export interface UsePortfolioReturn {
     portfolio: PortfolioState | null;
     walletUsdc: number | null;
-    vaultUsdc: number | null;
+    mockStrategyVaults: Record<StrategyId, number>;
     loading: boolean;
     error: string | null;
     exists: boolean;
@@ -136,10 +143,21 @@ function usePortfolioStore(): UsePortfolioReturn {
 
     const [portfolio, setPortfolio] = useState<PortfolioState | null>(null);
     const [walletUsdc, setWalletUsdc] = useState<number | null>(null);
-    const [vaultUsdc, setVaultUsdc] = useState<number | null>(null);
+    const [mockStrategyVaults, setMockStrategyVaults] = useState<Record<StrategyId, number>>(
+        () => emptyMockStrategyVaults()
+    );
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [exists, setExists] = useState(false);
+    const refreshGenRef = useRef(0);
+
+    useEffect(() => {
+        if (!address) {
+            setMockStrategyVaults(emptyMockStrategyVaults());
+            return;
+        }
+        setMockStrategyVaults(readMockStrategyVaults(address));
+    }, [address]);
 
     const getPortfolioPda = useCallback((owner: PublicKey): PublicKey => {
         const [pda] = PublicKey.findProgramAddressSync(
@@ -162,15 +180,21 @@ function usePortfolioStore(): UsePortfolioReturn {
     }, [connection, publicKey]);
 
     const refresh = useCallback(async () => {
+        const gen = ++refreshGenRef.current;
+        const isLatest = () => gen === refreshGenRef.current;
+
         if (!publicKey || !walletProviderRef.current) {
+            if (!isLatest()) return;
             setPortfolio(null);
             setExists(false);
             setWalletUsdc(null);
-            setVaultUsdc(null);
+            setMockStrategyVaults(emptyMockStrategyVaults());
             setError(null);
             setLoading(false);
             return;
         }
+
+        const walletAddr = publicKey.toBase58();
 
         setLoading(true);
         setError(null);
@@ -178,7 +202,6 @@ function usePortfolioStore(): UsePortfolioReturn {
         try {
             const program = getProgram();
             const pda = getPortfolioPda(publicKey);
-            const vaultPda = getVaultPda(publicKey);
             const userAta = getAssociatedTokenAddressSync(USDC_MINT, publicKey);
             const accounts = program.account as any;
 
@@ -186,6 +209,8 @@ function usePortfolioStore(): UsePortfolioReturn {
                 accounts.portfolio.fetchNullable(pda),
                 connection.getTokenAccountBalance(userAta),
             ]);
+
+            if (!isLatest()) return;
 
             if (userTokResult.status === "fulfilled") {
                 setWalletUsdc(Number(userTokResult.value.value.amount) / USDC_DECIMALS);
@@ -195,41 +220,48 @@ function usePortfolioStore(): UsePortfolioReturn {
 
             if (accResult.status === "fulfilled" && accResult.value) {
                 const account = accResult.value as any;
+                const amt = account.amountUsdc ?? account.amount_usdc;
+                const amountRaw =
+                    typeof amt?.toNumber === "function" ? amt.toNumber() : Number(amt ?? 0);
+                const lastTs = account.lastDepositAt ?? account.last_deposit_at;
+                const lastDepositAt =
+                    typeof lastTs?.toNumber === "function" ? lastTs.toNumber() : Number(lastTs ?? 0);
+                const depCt = account.depositCount ?? account.deposit_count ?? 0;
+
+                if (!isLatest()) return;
                 setExists(true);
-                const amountRaw = account.amountUsdc?.toNumber?.() ?? 0;
-                const lastDepositAt = account.lastDepositAt?.toNumber?.() ?? 0;
+                const strat = anchorToStrategyId(account.strategy as object);
                 setPortfolio({
                     owner: account.owner?.toBase58?.() ?? "",
-                    strategy: anchorToStrategyId(account.strategy as object),
+                    strategy: strat,
                     amountRaw,
                     amountUsdc: amountRaw / USDC_DECIMALS,
                     lastDepositAt: new Date(lastDepositAt * 1000),
-                    depositCount: account.depositCount ?? 0,
+                    depositCount: depCt,
                 });
-
-                if (amountRaw > 0) {
-                    try {
-                        const vr = await connection.getTokenAccountBalance(vaultPda);
-                        setVaultUsdc(Number(vr.value.amount) / USDC_DECIMALS);
-                    } catch {
-                        setVaultUsdc(0);
-                    }
-                } else {
-                    setVaultUsdc(0);
-                }
+                if (!isLatest()) return;
+                const splits = reconcileMockStrategyVaults(
+                    walletAddr,
+                    amountRaw / USDC_DECIMALS,
+                    strat
+                );
+                setMockStrategyVaults(splits);
             } else {
+                if (!isLatest()) return;
                 setExists(false);
                 setPortfolio(null);
-                setVaultUsdc(0);
+                const cleared = reconcileMockStrategyVaults(walletAddr, 0, "stableYield");
+                setMockStrategyVaults(cleared);
             }
         } catch (e: any) {
+            if (!isLatest()) return;
             setError(e.message ?? "Failed to fetch portfolio");
             setExists(false);
             setPortfolio(null);
         } finally {
-            setLoading(false);
+            if (isLatest()) setLoading(false);
         }
-    }, [publicKey, getProgram, getPortfolioPda, getVaultPda, connection]);
+    }, [publicKey, getProgram, getPortfolioPda, connection]);
 
     const refreshRef = useRef(refresh);
     refreshRef.current = refresh;
@@ -237,10 +269,11 @@ function usePortfolioStore(): UsePortfolioReturn {
     const providerReady = !!walletProvider;
     useEffect(() => {
         if (!publicKey?.toBase58()) {
+            refreshGenRef.current += 1;
             setPortfolio(null);
             setExists(false);
             setWalletUsdc(null);
-            setVaultUsdc(null);
+            setMockStrategyVaults(emptyMockStrategyVaults());
             setError(null);
             setLoading(false);
             return;
@@ -259,10 +292,13 @@ function usePortfolioStore(): UsePortfolioReturn {
             const userAta = getAssociatedTokenAddressSync(USDC_MINT, publicKey);
             const usdcUnits = new BN(Math.floor(amountUsdc * USDC_DECIMALS));
             const strategy = strategyToAnchor(strategyId);
+            const accountsNs = program.account as any;
+            const onChainPortfolio = await accountsNs.portfolio.fetchNullable(pda);
+            const useInit = !onChainPortfolio;
 
             let tx: string;
 
-            if (!exists) {
+            if (useInit) {
                 tx = await program.methods
                     .initializeAndDeposit(strategy, usdcUnits)
                     .accounts({
@@ -291,10 +327,15 @@ function usePortfolioStore(): UsePortfolioReturn {
                     .rpc({ commitment: "confirmed" });
             }
 
+            if (address) {
+                const floored =
+                    Math.floor(amountUsdc * USDC_DECIMALS) / USDC_DECIMALS;
+                addMockStrategyDeposit(address, strategyId, floored);
+            }
             await refresh();
             return tx;
         },
-        [publicKey, exists, getProgram, getPortfolioPda, getVaultPda, refresh]
+        [publicKey, getProgram, getPortfolioPda, getVaultPda, refresh]
     );
 
     const withdraw = useCallback(
@@ -351,7 +392,7 @@ function usePortfolioStore(): UsePortfolioReturn {
     return {
         portfolio,
         walletUsdc,
-        vaultUsdc,
+        mockStrategyVaults,
         loading,
         error,
         exists,
