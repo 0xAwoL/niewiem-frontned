@@ -2,6 +2,7 @@ import { Geist, Geist_Mono, Inter } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import AppKitProvider from "@/components/appkit-provider"
 import { cn } from "@/lib/utils";
 
 const geistMonoHeading = Geist_Mono({subsets:['latin'],variable:'--font-heading'});
@@ -25,7 +26,9 @@ export default function RootLayout({
       className={cn("antialiased", fontMono.variable, "font-sans", inter.variable, geistMonoHeading.variable)}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AppKitProvider>{children}</AppKitProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
