@@ -15,6 +15,13 @@ createAppKit({
   networks,
   metadata,
   themeMode: 'dark',
+  themeVariables: {
+    '--w3m-font-family': 'var(--font-sans, "Inter", sans-serif)',
+    '--w3m-accent': 'var(--primary, oklch(0.437 0.078 188.216))',
+    '--w3m-color-mix': 'var(--background, oklch(0.145 0 0))',
+    '--w3m-color-mix-strength': 15,
+    '--w3m-border-radius-master': '0px'
+  },
   features: {
     analytics: true
   }
