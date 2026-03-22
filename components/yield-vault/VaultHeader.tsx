@@ -12,7 +12,7 @@ export default function VaultHeader() {
         </div>
       </div>
       <div className="flex items-center">
-        <appkit-button size="sm" />
+        <appkit-button balance="hide" size="sm" />
       </div>
     </div>
   )

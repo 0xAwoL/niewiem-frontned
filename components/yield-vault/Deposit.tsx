@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { Strategies } from '@/components/yield-vault/Strategies'
 import { usePortfolio, StrategyId } from '@/hooks/usePortfolio'
-import { useUsdcBalance } from '@/hooks/useUsdcBalance'
 
 const getStrategyId = (s: string): StrategyId => {
   if (s === 'STABLE') return 'conservative'
@@ -13,8 +12,8 @@ const getStrategyId = (s: string): StrategyId => {
 export default function Deposit() {
   const [strategy, setStrategy] = useState('BALANCED')
   const [amount, setAmount] = useState('')
-  const { deposit, loading, portfolio } = usePortfolio()
-  const usdcBalance = useUsdcBalance()
+  const { deposit, loading, walletUsdc } = usePortfolio()
+  const usdcBalance = walletUsdc
 
   const handleDeposit = async () => {
     if (!amount || isNaN(Number(amount))) return

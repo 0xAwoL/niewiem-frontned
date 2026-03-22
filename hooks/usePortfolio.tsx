@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+    type ReactNode,
+} from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { useAppKitProvider, useAppKitAccount } from "@reown/appkit/react";
-import { Program, AnchorProvider, BN, web3, Idl } from "@coral-xyz/anchor";
-import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from "@solana/web3.js";
-import { 
-    TOKEN_PROGRAM_ID, 
-    getAssociatedTokenAddressSync,
-    createAssociatedTokenAccountInstruction,
-    getAccount,
-    TOKEN_2022_PROGRAM_ID
-} from "@solana/spl-token";
+import { Program, AnchorProvider, BN } from "@coral-xyz/anchor";
+import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
 
 const USDC_DECIMALS = 1_000_000;
 import IDL from "../idl/mock_portfolio.json";
@@ -71,9 +73,12 @@ export const STRATEGIES: StrategyConfig[] = [
 
 function strategyToAnchor(id: StrategyId): object {
     switch (id) {
-        case "stableYield": return { stableYield: {} };
-        case "conservative": return { conservative: {} };
-        case "growthFocus": return { growthFocus: {} };
+        case "stableYield":
+            return { stableYield: {} };
+        case "conservative":
+            return { conservative: {} };
+        case "growthFocus":
+            return { growthFocus: {} };
     }
 }
 
@@ -87,7 +92,6 @@ function anchorToStrategyId(raw: object): StrategyId {
 export interface PortfolioState {
     owner: string;
     strategy: StrategyId;
-    /** Raw on-chain units (6 decimals, USDC precision). Mirrors IDL field `amount_lamports`. */
     amountRaw: number;
     amountUsdc: number;
     lastDepositAt: Date;
@@ -96,6 +100,8 @@ export interface PortfolioState {
 
 export interface UsePortfolioReturn {
     portfolio: PortfolioState | null;
+    walletUsdc: number | null;
+    vaultUsdc: number | null;
     loading: boolean;
     error: string | null;
     exists: boolean;
@@ -105,13 +111,32 @@ export interface UsePortfolioReturn {
     refresh: () => Promise<void>;
 }
 
+const PortfolioContext = createContext<UsePortfolioReturn | undefined>(undefined);
+
+export function PortfolioProvider({ children }: { children: ReactNode }) {
+    const value = usePortfolioStore();
+    return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;
+}
+
 export function usePortfolio(): UsePortfolioReturn {
+    const ctx = useContext(PortfolioContext);
+    if (!ctx) {
+        throw new Error("usePortfolio must be used within PortfolioProvider");
+    }
+    return ctx;
+}
+
+function usePortfolioStore(): UsePortfolioReturn {
     const { connection } = useConnection();
     const { walletProvider } = useAppKitProvider<any>("solana");
+    const walletProviderRef = useRef(walletProvider);
+    walletProviderRef.current = walletProvider;
     const { address } = useAppKitAccount();
     const publicKey = address ? new PublicKey(address) : null;
 
     const [portfolio, setPortfolio] = useState<PortfolioState | null>(null);
+    const [walletUsdc, setWalletUsdc] = useState<number | null>(null);
+    const [vaultUsdc, setVaultUsdc] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [exists, setExists] = useState(false);
@@ -125,235 +150,214 @@ export function usePortfolio(): UsePortfolioReturn {
     }, []);
 
     const getVaultPda = useCallback((owner: PublicKey): PublicKey => {
-        const [pda] = PublicKey.findProgramAddressSync(
-            [VAULT_SEED, owner.toBuffer()],
-            PROGRAM_ID
-        );
+        const [pda] = PublicKey.findProgramAddressSync([VAULT_SEED, owner.toBuffer()], PROGRAM_ID);
         return pda;
     }, []);
 
     const getProgram = useCallback(() => {
-        if (!walletProvider || !publicKey) throw new Error("Wallet not connected");
-        const provider = new AnchorProvider(
-            connection,
-            walletProvider as any,
-            { commitment: "confirmed" }
-        );
+        const wp = walletProviderRef.current;
+        if (!wp || !publicKey) throw new Error("Wallet not connected");
+        const provider = new AnchorProvider(connection, wp as any, { commitment: "confirmed" });
         return new Program(IDL as any, provider);
-    }, [connection, walletProvider, publicKey]);
+    }, [connection, publicKey]);
 
     const refresh = useCallback(async () => {
-        if (!publicKey || !walletProvider) return;
+        if (!publicKey || !walletProviderRef.current) {
+            setPortfolio(null);
+            setExists(false);
+            setWalletUsdc(null);
+            setVaultUsdc(null);
+            setError(null);
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
         try {
             const program = getProgram();
             const pda = getPortfolioPda(publicKey);
-            const account = await program.account.portfolio.fetchNullable(pda);
+            const vaultPda = getVaultPda(publicKey);
+            const userAta = getAssociatedTokenAddressSync(USDC_MINT, publicKey);
+            const accounts = program.account as any;
 
-            if (!account) {
-                console.log("No portfolio account found");
-                setExists(false);
-                setPortfolio(null);
+            const [accResult, userTokResult] = await Promise.allSettled([
+                accounts.portfolio.fetchNullable(pda),
+                connection.getTokenAccountBalance(userAta),
+            ]);
+
+            if (userTokResult.status === "fulfilled") {
+                setWalletUsdc(Number(userTokResult.value.value.amount) / USDC_DECIMALS);
             } else {
-                console.log("Raw portfolio account data:", JSON.stringify(account, null, 2));
-                console.log("Account keys:", Object.keys(account));
-                
+                setWalletUsdc(0);
+            }
+
+            if (accResult.status === "fulfilled" && accResult.value) {
+                const account = accResult.value as any;
                 setExists(true);
-                
-                const amountRaw = account.amountUsdc?.toNumber?.() || 0;
-                const lastDepositAt = account.lastDepositAt?.toNumber?.() || 0;
-                
+                const amountRaw = account.amountUsdc?.toNumber?.() ?? 0;
+                const lastDepositAt = account.lastDepositAt?.toNumber?.() ?? 0;
                 setPortfolio({
-                    owner: account.owner?.toBase58?.() || "",
+                    owner: account.owner?.toBase58?.() ?? "",
                     strategy: anchorToStrategyId(account.strategy as object),
-                    amountRaw: amountRaw,
+                    amountRaw,
                     amountUsdc: amountRaw / USDC_DECIMALS,
                     lastDepositAt: new Date(lastDepositAt * 1000),
-                    depositCount: account.depositCount || 0,
+                    depositCount: account.depositCount ?? 0,
                 });
-                
-                console.log("Portfolio state set successfully");
+
+                if (amountRaw > 0) {
+                    try {
+                        const vr = await connection.getTokenAccountBalance(vaultPda);
+                        setVaultUsdc(Number(vr.value.amount) / USDC_DECIMALS);
+                    } catch {
+                        setVaultUsdc(0);
+                    }
+                } else {
+                    setVaultUsdc(0);
+                }
+            } else {
+                setExists(false);
+                setPortfolio(null);
+                setVaultUsdc(0);
             }
         } catch (e: any) {
-            console.error("Failed to fetch portfolio:", e);
             setError(e.message ?? "Failed to fetch portfolio");
             setExists(false);
             setPortfolio(null);
         } finally {
             setLoading(false);
         }
-    }, [publicKey, walletProvider, getProgram, getPortfolioPda]);
+    }, [publicKey, getProgram, getPortfolioPda, getVaultPda, connection]);
 
+    const refreshRef = useRef(refresh);
+    refreshRef.current = refresh;
+
+    const providerReady = !!walletProvider;
     useEffect(() => {
-        if (publicKey && walletProvider) {
-            refresh();
+        if (!publicKey?.toBase58()) {
+            setPortfolio(null);
+            setExists(false);
+            setWalletUsdc(null);
+            setVaultUsdc(null);
+            setError(null);
+            setLoading(false);
+            return;
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [publicKey?.toBase58()]);
+        if (!providerReady) return;
+        void refreshRef.current();
+    }, [publicKey?.toBase58(), providerReady]);
 
-    const deposit = useCallback(async (
-        strategyId: StrategyId,
-        amountUsdc: number
-    ): Promise<string> => {
-        if (!publicKey) throw new Error("Wallet not connected");
+    const deposit = useCallback(
+        async (strategyId: StrategyId, amountUsdc: number): Promise<string> => {
+            if (!publicKey) throw new Error("Wallet not connected");
 
-        const program = getProgram();
-        const pda = getPortfolioPda(publicKey);
-        const vaultPda = getVaultPda(publicKey);
-        const userAta = getAssociatedTokenAddressSync(USDC_MINT, publicKey);
-        const usdcUnits = new BN(Math.floor(amountUsdc * USDC_DECIMALS));
-        const strategy = strategyToAnchor(strategyId);
+            const program = getProgram();
+            const pda = getPortfolioPda(publicKey);
+            const vaultPda = getVaultPda(publicKey);
+            const userAta = getAssociatedTokenAddressSync(USDC_MINT, publicKey);
+            const usdcUnits = new BN(Math.floor(amountUsdc * USDC_DECIMALS));
+            const strategy = strategyToAnchor(strategyId);
 
-        console.log("=== DEPOSIT TRANSACTION DEBUG ===");
-        console.log("PROGRAM_ID:", PROGRAM_ID.toBase58());
-        console.log("PORTFOLIO_SEED:", PORTFOLIO_SEED.toString(), "bytes:", Array.from(PORTFOLIO_SEED));
-        console.log("VAULT_SEED:", VAULT_SEED.toString(), "bytes:", Array.from(VAULT_SEED));
-        console.log("---");
-        console.log("owner:", publicKey.toBase58());
-        console.log("portfolio PDA:", pda.toBase58());
-        console.log("vault PDA:", vaultPda.toBase58());
-        console.log("usdcMint:", USDC_MINT.toBase58());
-        console.log("userUsdc (ATA):", userAta.toBase58());
-        console.log("---");
-        console.log("tokenProgram:", TOKEN_PROGRAM_ID.toBase58());
-        console.log("systemProgram:", SystemProgram.programId.toBase58());
-        console.log("rent:", SYSVAR_RENT_PUBKEY.toBase58());
-        console.log("=================================");
+            let tx: string;
 
-        console.log("Checking for token accounts...");
-        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
-            programId: TOKEN_PROGRAM_ID
-        });
-        console.log(`Found ${tokenAccounts.value.length} token accounts:`);
-        tokenAccounts.value.forEach((acc, i) => {
-            const parsed = acc.account.data.parsed.info;
-            console.log(`  ${i + 1}. Mint: ${parsed.mint}, Balance: ${parsed.tokenAmount.uiAmount}`);
-        });
+            if (!exists) {
+                tx = await program.methods
+                    .initializeAndDeposit(strategy, usdcUnits)
+                    .accounts({
+                        owner: publicKey,
+                        portfolio: pda,
+                        usdcMint: USDC_MINT,
+                        userUsdc: userAta,
+                        vault: vaultPda,
+                        tokenProgram: TOKEN_PROGRAM_ID,
+                        systemProgram: SystemProgram.programId,
+                        rent: SYSVAR_RENT_PUBKEY,
+                    })
+                    .rpc({ commitment: "confirmed" });
+            } else {
+                tx = await program.methods
+                    .deposit(strategy, usdcUnits)
+                    .accounts({
+                        owner: publicKey,
+                        portfolio: pda,
+                        usdcMint: USDC_MINT,
+                        userUsdc: userAta,
+                        vault: vaultPda,
+                        tokenProgram: TOKEN_PROGRAM_ID,
+                        systemProgram: SystemProgram.programId,
+                    })
+                    .rpc({ commitment: "confirmed" });
+            }
 
-        try {
-            const accountInfo = await getAccount(connection, userAta);
-            console.log("✓ User USDC ATA exists");
-            console.log("  Balance:", accountInfo.amount.toString());
-            console.log("  Mint:", accountInfo.mint.toBase58());
-            console.log("  Owner:", accountInfo.owner.toBase58());
-        } catch (e: any) {
-            console.log("✗ User USDC ATA check failed:", e.message);
-            console.log("Attempting transaction anyway - the program will create it if needed or fail with a better error");
-        }
+            await refresh();
+            return tx;
+        },
+        [publicKey, exists, getProgram, getPortfolioPda, getVaultPda, refresh]
+    );
 
-        console.log("Portfolio exists?", exists);
-        console.log("Current portfolio state:", portfolio);
+    const withdraw = useCallback(
+        async (amountUsdc: number): Promise<string> => {
+            if (!publicKey) throw new Error("Wallet not connected");
 
-        let tx: string;
+            const program = getProgram();
+            const pda = getPortfolioPda(publicKey);
+            const vaultPda = getVaultPda(publicKey);
+            const userAta = getAssociatedTokenAddressSync(USDC_MINT, publicKey);
+            const usdcUnits = new BN(Math.floor(amountUsdc * USDC_DECIMALS));
 
-        if (!exists) {
-            console.log("Using initializeAndDeposit (first deposit)");
-            const accounts = {
-                owner: publicKey,
-                portfolio: pda,
-                usdcMint: USDC_MINT,
-                userUsdc: userAta,
-                vault: vaultPda,
-                tokenProgram: TOKEN_PROGRAM_ID,
-                systemProgram: SystemProgram.programId,
-                rent: SYSVAR_RENT_PUBKEY,
-            };
-            console.log("Accounts object:");
-            Object.entries(accounts).forEach(([key, val]) => {
-                console.log(`  ${key}: ${val.toBase58()}`);
-            });
-            
-            tx = await program.methods
-                .initializeAndDeposit(strategy, usdcUnits)
-                .accounts(accounts)
+            const tx = await program.methods
+                .withdraw(usdcUnits)
+                .accounts({
+                    owner: publicKey,
+                    portfolio: pda,
+                    usdcMint: USDC_MINT,
+                    userUsdc: userAta,
+                    vault: vaultPda,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                    systemProgram: SystemProgram.programId,
+                })
                 .rpc({ commitment: "confirmed" });
-        } else {
-            console.log("Using deposit (subsequent deposit)");
-            const accounts = {
-                owner: publicKey,
-                portfolio: pda,
-                usdcMint: USDC_MINT,
-                userUsdc: userAta,
-                vault: vaultPda,
-                tokenProgram: TOKEN_PROGRAM_ID,
-                systemProgram: SystemProgram.programId,
-            };
-            console.log("Accounts object:");
-            Object.entries(accounts).forEach(([key, val]) => {
-                console.log(`  ${key}: ${val.toBase58()}`);
-            });
-            
-            tx = await program.methods
-                .deposit(strategy, usdcUnits)
-                .accounts(accounts)
+
+            await refresh();
+            return tx;
+        },
+        [publicKey, getProgram, getPortfolioPda, getVaultPda, refresh]
+    );
+
+    const switchStrategy = useCallback(
+        async (strategyId: StrategyId): Promise<string> => {
+            if (!publicKey) throw new Error("Wallet not connected");
+
+            const program = getProgram();
+            const pda = getPortfolioPda(publicKey);
+            const strategy = strategyToAnchor(strategyId);
+
+            const tx = await program.methods
+                .switchStrategy(strategy)
+                .accounts({
+                    owner: publicKey,
+                    portfolio: pda,
+                })
                 .rpc({ commitment: "confirmed" });
-        }
 
-        await refresh();
-        return tx;
-    }, [publicKey, exists, getProgram, getPortfolioPda, getVaultPda, refresh, connection]);
+            await refresh();
+            return tx;
+        },
+        [publicKey, getProgram, getPortfolioPda, refresh]
+    );
 
-    const withdraw = useCallback(async (amountUsdc: number): Promise<string> => {
-        if (!publicKey) throw new Error("Wallet not connected");
-
-        const program = getProgram();
-        const pda = getPortfolioPda(publicKey);
-        const vaultPda = getVaultPda(publicKey);
-        const userAta = getAssociatedTokenAddressSync(USDC_MINT, publicKey);
-        const usdcUnits = new BN(Math.floor(amountUsdc * USDC_DECIMALS));
-
-        console.log("=== WITHDRAW TRANSACTION DEBUG ===");
-        console.log("PROGRAM_ID:", PROGRAM_ID.toBase58());
-        console.log("PORTFOLIO_SEED:", PORTFOLIO_SEED.toString(), "bytes:", Array.from(PORTFOLIO_SEED));
-        console.log("VAULT_SEED:", VAULT_SEED.toString(), "bytes:", Array.from(VAULT_SEED));
-        console.log("---");
-        console.log("owner:", publicKey.toBase58());
-        console.log("portfolio PDA:", pda.toBase58());
-        console.log("vault PDA:", vaultPda.toBase58());
-        console.log("usdcMint:", USDC_MINT.toBase58());
-        console.log("userUsdc (ATA):", userAta.toBase58());
-        console.log("---");
-        console.log("tokenProgram:", TOKEN_PROGRAM_ID.toBase58());
-        console.log("systemProgram:", SystemProgram.programId.toBase58());
-        console.log("==================================");
-
-        const tx = await program.methods
-            .withdraw(usdcUnits)
-            .accounts({
-                owner: publicKey,
-                portfolio: pda,
-                usdcMint: USDC_MINT,
-                userUsdc: userAta,
-                vault: vaultPda,
-                tokenProgram: TOKEN_PROGRAM_ID,
-                systemProgram: SystemProgram.programId,
-            })
-            .rpc({ commitment: "confirmed" });
-
-        await refresh();
-        return tx;
-    }, [publicKey, getProgram, getPortfolioPda, getVaultPda, refresh]);
-
-    const switchStrategy = useCallback(async (strategyId: StrategyId): Promise<string> => {
-        if (!publicKey) throw new Error("Wallet not connected");
-
-        const program = getProgram();
-        const pda = getPortfolioPda(publicKey);
-        const strategy = strategyToAnchor(strategyId);
-
-        const tx = await program.methods
-            .switchStrategy(strategy)
-            .accounts({
-                owner: publicKey,
-                portfolio: pda,
-            })
-            .rpc({ commitment: "confirmed" });
-
-        await refresh();
-        return tx;
-    }, [publicKey, getProgram, getPortfolioPda, refresh]);
-
-    return { portfolio, loading, error, exists, deposit, withdraw, switchStrategy, refresh };
+    return {
+        portfolio,
+        walletUsdc,
+        vaultUsdc,
+        loading,
+        error,
+        exists,
+        deposit,
+        withdraw,
+        switchStrategy,
+        refresh,
+    };
 }

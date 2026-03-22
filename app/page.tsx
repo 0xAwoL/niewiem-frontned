@@ -6,6 +6,7 @@ import Dashboard from '@/components/yield-vault/Dashboard'
 import Deposit from '@/components/yield-vault/Deposit'
 import Withdraw from '@/components/yield-vault/Withdraw'
 import { Points } from '@/components/yield-vault/Points'
+import { PortfolioProvider } from '@/hooks/usePortfolio'
 
 export default function AppClientPage() {
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'DEPOSIT' | 'WITHDRAW' | 'POINTS'>('DEPOSIT')
@@ -13,7 +14,7 @@ export default function AppClientPage() {
     <div className="bg-[#111] min-h-screen flex justify-center items-center text-[#b0b0b0] font-mono text-[11px] overflow-hidden m-0 p-4 select-none antialiased">
       {/* Rigid 720x600 size prevents any resizing when swapping tabs */}
       <div className="bg-[#030303] border border-[#1a1a1a] w-full max-w-[720px] h-[640px] flex flex-col shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
-
+        <PortfolioProvider>
         <VaultHeader />
 
         {/* CSS TABS */}
@@ -53,7 +54,7 @@ export default function AppClientPage() {
         </div>
 
         <VaultFooter />
-
+        </PortfolioProvider>
       </div>
     </div>
   )

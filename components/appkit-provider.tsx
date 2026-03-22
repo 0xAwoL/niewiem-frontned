@@ -28,10 +28,11 @@ createAppKit({
       image: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png'
     }
   },
-  features: {
-    analytics: true,
-    swaps: true
-  }
+  // features: {
+  //   // analytics: true,
+  //   // onramp: false,
+  //   // swaps: true
+  // }
 })
 
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
@@ -39,7 +40,7 @@ import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react
 export default function AppKitProvider({ children }: { children: ReactNode }) {
   return (
     <ConnectionProvider endpoint="https://api.devnet.solana.com">
-      <WalletProvider wallets={[]} autoConnect>
+      <WalletProvider wallets={[]} autoConnect >
         {children}
       </WalletProvider>
     </ConnectionProvider>
