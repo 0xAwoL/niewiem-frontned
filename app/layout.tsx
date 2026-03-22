@@ -5,9 +5,9 @@ import { ThemeProvider } from "@/components/theme-provider"
 import AppKitProvider from "@/components/appkit-provider"
 import { cn } from "@/lib/utils";
 
-const geistMonoHeading = Geist_Mono({subsets:['latin'],variable:'--font-heading'});
+const geistMonoHeading = Geist_Mono({ subsets: ['latin'], variable: '--font-heading' });
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'})
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 
 const fontMono = Geist_Mono({
   subsets: ["latin"],

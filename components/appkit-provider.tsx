@@ -27,6 +27,14 @@ createAppKit({
   }
 })
 
+import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
+
 export default function AppKitProvider({ children }: { children: ReactNode }) {
-  return <>{children}</>
+  return (
+    <ConnectionProvider endpoint="https://api.devnet.solana.com">
+      <WalletProvider wallets={[]} autoConnect>
+        {children}
+      </WalletProvider>
+    </ConnectionProvider>
+  )
 }

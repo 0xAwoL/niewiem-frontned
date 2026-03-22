@@ -1,28 +1,41 @@
+'use client'
+import { usePortfolio, STRATEGIES } from '@/hooks/usePortfolio'
+
 export default function Dashboard() {
+  const { portfolio } = usePortfolio()
+  const strategy = portfolio?.strategy || 'stableYield'
+  const config = STRATEGIES.find(s => s.id === strategy)
+
+  const apy = config ? (config.apyBps / 100).toFixed(1) : '0.0'
+  const strategyName = config ? config.name : 'Unknown'
+  const targetBal = portfolio?.amountSol || 0
+
   return (
     <>
       <div className="py-[8px] px-[16px] text-white uppercase border-b border-[#1a1a1a] flex justify-between items-center">
         <span>POSITION_STATUS</span>
-        <span className="text-[#444]">LIVE</span>
+        <span className={portfolio ? "text-[#4ade80]" : "text-[#444]"}>
+          {portfolio ? 'LIVE' : 'INACTIVE'}
+        </span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 border-b border-[#1a1a1a]">
         <div className="p-[12px_16px] border-b md:border-b-0 md:border-r border-[#1a1a1a] flex flex-col gap-[8px]">
           <div className="text-[#444] uppercase">TOTAL_VAL</div>
-          <div className="text-white text-[14px]">$1,240.50</div>
+          <div className="text-white text-[14px]">{targetBal.toFixed(2)} SOL</div>
         </div>
         <div className="p-[12px_16px] border-b md:border-b-0 md:border-r border-[#1a1a1a] flex flex-col gap-[8px]">
-          <div className="text-[#444] uppercase">YIELD_EARNED</div>
-          <div className="text-[#fff] text-[14px]">+$40.50</div>
+          <div className="text-[#444] uppercase">DEPOSITS</div>
+          <div className="text-[#fff] text-[14px]">{portfolio?.depositCount || 0}</div>
         </div>
         <div className="p-[12px_16px] flex flex-col gap-[8px]">
           <div className="text-[#444] uppercase">LIVE_APY</div>
-          <div className="text-white text-[14px]">8.2%</div>
+          <div className="text-white text-[14px]">{apy}%</div>
         </div>
       </div>
 
       <div className="py-[8px] px-[16px] text-white uppercase border-b border-[#1a1a1a] flex justify-between items-center mt-[32px] border-t">
         <span>STRATEGY_ALLOCATION</span>
-        <span className="text-[#444]">BALANCED</span>
+        <span className="text-[#444] uppercase">{strategyName}</span>
       </div>
       
       <div className="grid grid-cols-[1fr_1fr_60px] border-b border-[#1a1a1a] h-[24px] items-center text-center text-[#444] uppercase text-[9px] shrink-0">
@@ -32,21 +45,20 @@ export default function Dashboard() {
       </div>
       
       <div className="flex flex-col grow">
-        <div className="grid grid-cols-[1fr_1fr_60px] h-[24px] items-center border-b border-[#1a1a1a]">
-          <div className="pl-[16px] text-white overflow-hidden text-ellipsis whitespace-nowrap pr-2">Ondo USDY</div>
-          <div className="border-l border-[#1a1a1a] h-full leading-[24px] pl-[12px] text-[#b0b0b0]">~$620.25</div>
-          <div className="text-[#444] text-center border-l border-[#1a1a1a] h-full leading-[24px]">50%</div>
-        </div>
-        <div className="grid grid-cols-[1fr_1fr_60px] h-[24px] items-center border-b border-[#1a1a1a]">
-          <div className="pl-[16px] text-white overflow-hidden text-ellipsis whitespace-nowrap pr-2">Orca XAUT/USDC LP</div>
-          <div className="border-l border-[#1a1a1a] h-full leading-[24px] pl-[12px] text-[#b0b0b0]">~$372.15</div>
-          <div className="text-[#444] text-center border-l border-[#1a1a1a] h-full leading-[24px]">30%</div>
-        </div>
-        <div className="grid grid-cols-[1fr_1fr_60px] h-[24px] items-center border-b border-[#1a1a1a]">
-          <div className="pl-[16px] text-white overflow-hidden text-ellipsis whitespace-nowrap pr-2">Kamino xSPY Lending</div>
-          <div className="border-l border-[#1a1a1a] h-full leading-[24px] pl-[12px] text-[#b0b0b0]">~$248.10</div>
-          <div className="text-[#444] text-center border-l border-[#1a1a1a] h-full leading-[24px]">20%</div>
-        </div>
+        {config?.allocations.map((alloc, i) => {
+           const val = targetBal * (alloc.pct / 100);
+           return (
+             <div key={i} className="grid grid-cols-[1fr_1fr_60px] h-[24px] items-center border-b border-[#1a1a1a]">
+               <div className="pl-[16px] overflow-hidden text-ellipsis whitespace-nowrap pr-2" style={{ color: alloc.color }}>
+                 {alloc.label}
+               </div>
+               <div className="border-l border-[#1a1a1a] h-full leading-[24px] pl-[12px] text-[#b0b0b0]">
+                 ~{val.toFixed(2)} SOL
+               </div>
+               <div className="text-[#444] text-center border-l border-[#1a1a1a] h-full leading-[24px]">{alloc.pct}%</div>
+             </div>
+           )
+        })}
       </div>
     </>
   )

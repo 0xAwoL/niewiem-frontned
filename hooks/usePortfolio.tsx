@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet, useAnchorWallet } from "@solana/wallet-adapter-react";
 import { Program, AnchorProvider, BN, web3, Idl } from "@coral-xyz/anchor";
 import { PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import IDL from "../idl/mock_portfolio.json";
@@ -55,7 +55,7 @@ export const STRATEGIES: StrategyConfig[] = [
             { label: "xSPY LEND", pct: 40, color: "#60a5fa" },
         ],
     },
-]
+];
 
 function strategyToAnchor(id: StrategyId): object {
     switch (id) {
@@ -64,6 +64,7 @@ function strategyToAnchor(id: StrategyId): object {
         case "growthFocus": return { growthFocus: {} };
     }
 }
+
 function anchorToStrategyId(raw: object): StrategyId {
     if ("stableYield" in raw) return "stableYield";
     if ("conservative" in raw) return "conservative";
@@ -91,10 +92,10 @@ export interface UsePortfolioReturn {
     refresh: () => Promise<void>;
 }
 
-
 export function usePortfolio(): UsePortfolioReturn {
     const { connection } = useConnection();
-    const { publicKey, signTransaction, sendTransaction } = useWallet();
+    const { publicKey } = useWallet();
+    const anchorWallet = useAnchorWallet();
 
     const [portfolio, setPortfolio] = useState<PortfolioState | null>(null);
     const [loading, setLoading] = useState(false);
@@ -110,17 +111,17 @@ export function usePortfolio(): UsePortfolioReturn {
     }, []);
 
     const getProgram = useCallback(() => {
-        if (!publicKey || !signTransaction) throw new Error("Wallet not connected");
+        if (!anchorWallet) throw new Error("Wallet not connected");
         const provider = new AnchorProvider(
             connection,
-            { publicKey, signTransaction, signAllTransactions: async (txs) => txs } as any,
+            anchorWallet,
             { commitment: "confirmed" }
         );
         return new Program(IDL as Idl, PROGRAM_ID, provider);
-    }, [connection, publicKey, signTransaction]);
+    }, [connection, anchorWallet]);
 
     const refresh = useCallback(async () => {
-        if (!publicKey) return;
+        if (!publicKey || !anchorWallet) return;
         setLoading(true);
         setError(null);
 
@@ -148,11 +149,11 @@ export function usePortfolio(): UsePortfolioReturn {
         } finally {
             setLoading(false);
         }
-    }, [publicKey, getProgram, getPortfolioPda]);
+    }, [publicKey, anchorWallet, getProgram, getPortfolioPda]);
 
     useEffect(() => {
         refresh();
-    }, [publicKey]);
+    }, [publicKey, anchorWallet, refresh]);
 
     const deposit = useCallback(async (
         strategyId: StrategyId,

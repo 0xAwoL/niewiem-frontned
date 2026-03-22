@@ -1,6 +1,23 @@
 'use client'
+import { useState } from 'react'
+import { usePortfolio } from '@/hooks/usePortfolio'
 
 export default function Withdraw() {
+  const [amount, setAmount] = useState('')
+  const { portfolio, withdraw, loading } = usePortfolio()
+
+  const maxAmount = portfolio?.amountSol || 0
+
+  const handleWithdraw = async () => {
+    if (!amount || isNaN(Number(amount))) return
+    try {
+      await withdraw(Number(amount))
+      setAmount('')
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full grow bg-[#030303] w-full overflow-x-hidden">
       <div className="py-[8px] px-[16px] text-white uppercase border-b border-[#1a1a1a] flex justify-between items-center shrink-0 bg-[#050505]">
@@ -10,11 +27,11 @@ export default function Withdraw() {
       <div className="p-[16px] border-b border-[#1a1a1a] flex flex-col sm:flex-row justify-between bg-[#050505] shrink-0 gap-4 sm:gap-0">
         <div className="flex flex-col gap-[4px]">
           <span className="text-[#444] uppercase">AVAILABLE</span>
-          <span className="text-white text-[12px]">1,240.50 vUSDC-BAL</span>
+          <span className="text-white text-[12px]">{maxAmount.toFixed(2)} vSOL-BAL</span>
         </div>
         <div className="flex flex-col gap-[4px] sm:text-right">
-          <span className="text-[#444] uppercase">OUTPUT_EST(USDC)</span>
-          <span className="text-white text-[12px]">$1,240.50</span>
+          <span className="text-[#444] uppercase">OUTPUT_EST(SOL)</span>
+          <span className="text-white text-[12px]">{amount || '0.00'}</span>
         </div>
       </div>
 
@@ -26,10 +43,15 @@ export default function Withdraw() {
           <input 
             type="number" 
             placeholder="0.00" 
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            disabled={loading}
             className="bg-transparent border-none text-white p-[8px] w-full outline-none placeholder-[#444] font-mono h-full [-moz-appearance:_textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
           <div className="flex items-center border-l border-[#1a1a1a] shrink-0 h-full">
-             <button className="px-[12px] h-full hover:text-white uppercase text-[#444] cursor-pointer transition-colors active:text-[#b0b0b0]">
+             <button 
+                onClick={() => setAmount(maxAmount.toString())}
+                className="px-[12px] h-full hover:text-white uppercase text-[#444] cursor-pointer transition-colors active:text-[#b0b0b0]">
                MAX
              </button>
           </div>
@@ -37,8 +59,11 @@ export default function Withdraw() {
       </div>
 
       <div className="mt-auto border-t border-[#1a1a1a]">
-        <button className="w-full border-b-0 border-[#1a1a1a] text-white py-[12px] hover:bg-[#1a1a1a] hover:text-white uppercase tracking-[2px] transition-colors cursor-pointer bg-[#050505]">
-          EXECUTE_WITHDRAW
+        <button 
+          onClick={handleWithdraw}
+          disabled={loading || maxAmount === 0}
+          className={`w-full border-b-0 py-[12px] hover:bg-[#1a1a1a] hover:text-white uppercase tracking-[2px] transition-colors cursor-pointer ${loading ? 'bg-[#333] text-[#888]' : 'bg-[#050505] text-white border-[#1a1a1a]'}`}>
+          {loading ? 'EXECUTING...' : 'EXECUTE_WITHDRAW'}
         </button>
       </div>
     </div>
