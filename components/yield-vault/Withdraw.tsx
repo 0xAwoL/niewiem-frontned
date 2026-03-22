@@ -6,7 +6,7 @@ export default function Withdraw() {
   const [amount, setAmount] = useState('')
   const { portfolio, withdraw, loading } = usePortfolio()
 
-  const maxAmount = portfolio?.amountSol || 0
+  const maxAmount = portfolio?.amountUsdc || 0
 
   const handleWithdraw = async () => {
     if (!amount || isNaN(Number(amount))) return
@@ -27,10 +27,10 @@ export default function Withdraw() {
       <div className="p-[16px] border-b border-[#1a1a1a] flex flex-col sm:flex-row justify-between bg-[#050505] shrink-0 gap-4 sm:gap-0">
         <div className="flex flex-col gap-[4px]">
           <span className="text-[#444] uppercase">AVAILABLE</span>
-          <span className="text-white text-[12px]">{maxAmount.toFixed(2)} vSOL-BAL</span>
+          <span className="text-white text-[12px]">{maxAmount.toFixed(2)} vUSDC-BAL</span>
         </div>
         <div className="flex flex-col gap-[4px] sm:text-right">
-          <span className="text-[#444] uppercase">OUTPUT_EST(SOL)</span>
+          <span className="text-[#444] uppercase">OUTPUT_EST(USDC)</span>
           <span className="text-white text-[12px]">{amount || '0.00'}</span>
         </div>
       </div>

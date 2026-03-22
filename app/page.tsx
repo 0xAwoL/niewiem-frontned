@@ -9,7 +9,6 @@ import { Points } from '@/components/yield-vault/Points'
 
 export default function AppClientPage() {
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'DEPOSIT' | 'WITHDRAW' | 'POINTS'>('DEPOSIT')
-
   return (
     <div className="bg-[#111] min-h-screen flex justify-center items-center text-[#b0b0b0] font-mono text-[11px] overflow-hidden m-0 p-4 select-none antialiased">
       {/* Rigid 720x600 size prevents any resizing when swapping tabs */}

@@ -1,355 +1,471 @@
 {
-    "address": "MockPortfo1io111111111111111111111111111111",
+    "address": "GbALJtQCRmZbxkn5mhWjPeka75ZQg9tYQD5vCV7hdiSo",
     "metadata": {
-        "name": "mock_portfolio",
-        "version": "0.1.0",
-        "spec": "0.1.0",
-        "description": "Created with Anchor"
+      "name": "mock_portfolio",
+      "version": "0.1.0",
+      "spec": "0.1.0"
     },
     "instructions": [
-        {
-            "name": "deposit",
-            "discriminator": [
-                242,
-                35,
-                198,
-                137,
-                82,
-                225,
-                242,
-                182
-            ],
-            "accounts": [
-                {
-                    "name": "owner",
-                    "writable": true,
-                    "signer": true,
-                    "relations": [
-                        "portfolio"
-                    ]
-                },
-                {
-                    "name": "portfolio",
-                    "writable": true,
-                    "pda": {
-                        "seeds": [
-                            {
-                                "kind": "const",
-                                "value": [
-                                    112,
-                                    111,
-                                    114,
-                                    116,
-                                    102,
-                                    111,
-                                    108,
-                                    105,
-                                    111
-                                ]
-                            },
-                            {
-                                "kind": "account",
-                                "path": "owner"
-                            }
-                        ]
-                    }
-                },
-                {
-                    "name": "system_program",
-                    "address": "11111111111111111111111111111111"
-                }
-            ],
-            "args": [
-                {
-                    "name": "strategy",
-                    "type": {
-                        "defined": {
-                            "name": "Strategy"
-                        }
-                    }
-                },
-                {
-                    "name": "amount_lamports",
-                    "type": "u64"
-                }
+      {
+        "name": "deposit",
+        "discriminator": [
+          242,
+          35,
+          198,
+          137,
+          82,
+          225,
+          242,
+          182
+        ],
+        "accounts": [
+          {
+            "name": "owner",
+            "writable": true,
+            "signer": true,
+            "relations": [
+              "portfolio"
             ]
-        },
-        {
-            "name": "initialize_and_deposit",
-            "discriminator": [
-                18,
-                152,
-                143,
-                221,
-                235,
-                239,
-                245,
-                30
-            ],
-            "accounts": [
+          },
+          {
+            "name": "portfolio",
+            "writable": true,
+            "pda": {
+              "seeds": [
                 {
-                    "name": "owner",
-                    "writable": true,
-                    "signer": true
+                  "kind": "const",
+                  "value": [
+                    112,
+                    111,
+                    114,
+                    116,
+                    102,
+                    111,
+                    108,
+                    105,
+                    111
+                  ]
                 },
                 {
-                    "name": "portfolio",
-                    "writable": true,
-                    "pda": {
-                        "seeds": [
-                            {
-                                "kind": "const",
-                                "value": [
-                                    112,
-                                    111,
-                                    114,
-                                    116,
-                                    102,
-                                    111,
-                                    108,
-                                    105,
-                                    111
-                                ]
-                            },
-                            {
-                                "kind": "account",
-                                "path": "owner"
-                            }
-                        ]
-                    }
-                },
-                {
-                    "name": "system_program",
-                    "address": "11111111111111111111111111111111"
+                  "kind": "account",
+                  "path": "owner"
                 }
-            ],
-            "args": [
+              ]
+            }
+          },
+          {
+            "name": "usdc_mint"
+          },
+          {
+            "name": "user_usdc",
+            "writable": true
+          },
+          {
+            "name": "vault",
+            "writable": true,
+            "pda": {
+              "seeds": [
                 {
-                    "name": "strategy",
-                    "type": {
-                        "defined": {
-                            "name": "Strategy"
-                        }
-                    }
+                  "kind": "const",
+                  "value": [
+                    118,
+                    97,
+                    117,
+                    108,
+                    116
+                  ]
                 },
                 {
-                    "name": "amount_lamports",
-                    "type": "u64"
+                  "kind": "account",
+                  "path": "owner"
                 }
+              ]
+            }
+          },
+          {
+            "name": "token_program",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "system_program",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "args": [
+          {
+            "name": "strategy",
+            "type": {
+              "defined": {
+                "name": "Strategy"
+              }
+            }
+          },
+          {
+            "name": "amount_usdc",
+            "type": "u64"
+          }
+        ]
+      },
+      {
+        "name": "initialize_and_deposit",
+        "discriminator": [
+          18,
+          152,
+          143,
+          221,
+          235,
+          239,
+          245,
+          30
+        ],
+        "accounts": [
+          {
+            "name": "owner",
+            "writable": true,
+            "signer": true
+          },
+          {
+            "name": "portfolio",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    112,
+                    111,
+                    114,
+                    116,
+                    102,
+                    111,
+                    108,
+                    105,
+                    111
+                  ]
+                },
+                {
+                  "kind": "account",
+                  "path": "owner"
+                }
+              ]
+            }
+          },
+          {
+            "name": "usdc_mint",
+            "docs": [
+              "The USDC mint — validated against the hardcoded USDC_MINT constant in the handler"
             ]
-        },
-        {
-            "name": "switch_strategy",
-            "discriminator": [
-                108,
-                56,
-                30,
-                73,
-                186,
-                85,
-                139,
-                125
+          },
+          {
+            "name": "user_usdc",
+            "docs": [
+              "User's USDC token account — funds flow from here"
             ],
-            "accounts": [
+            "writable": true
+          },
+          {
+            "name": "vault",
+            "docs": [
+              "Program vault — holds the deposited USDC on behalf of this portfolio"
+            ],
+            "writable": true,
+            "pda": {
+              "seeds": [
                 {
-                    "name": "owner",
-                    "signer": true,
-                    "relations": [
-                        "portfolio"
-                    ]
+                  "kind": "const",
+                  "value": [
+                    118,
+                    97,
+                    117,
+                    108,
+                    116
+                  ]
                 },
                 {
-                    "name": "portfolio",
-                    "writable": true,
-                    "pda": {
-                        "seeds": [
-                            {
-                                "kind": "const",
-                                "value": [
-                                    112,
-                                    111,
-                                    114,
-                                    116,
-                                    102,
-                                    111,
-                                    108,
-                                    105,
-                                    111
-                                ]
-                            },
-                            {
-                                "kind": "account",
-                                "path": "owner"
-                            }
-                        ]
-                    }
+                  "kind": "account",
+                  "path": "owner"
                 }
-            ],
-            "args": [
-                {
-                    "name": "new_strategy",
-                    "type": {
-                        "defined": {
-                            "name": "Strategy"
-                        }
-                    }
-                }
+              ]
+            }
+          },
+          {
+            "name": "token_program",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "system_program",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "rent",
+            "address": "SysvarRent111111111111111111111111111111111"
+          }
+        ],
+        "args": [
+          {
+            "name": "strategy",
+            "type": {
+              "defined": {
+                "name": "Strategy"
+              }
+            }
+          },
+          {
+            "name": "amount_usdc",
+            "type": "u64"
+          }
+        ]
+      },
+      {
+        "name": "switch_strategy",
+        "discriminator": [
+          108,
+          56,
+          30,
+          73,
+          186,
+          85,
+          139,
+          125
+        ],
+        "accounts": [
+          {
+            "name": "owner",
+            "signer": true,
+            "relations": [
+              "portfolio"
             ]
-        },
-        {
-            "name": "withdraw",
-            "discriminator": [
-                183,
-                18,
-                70,
-                156,
-                148,
-                109,
-                161,
-                34
-            ],
-            "accounts": [
+          },
+          {
+            "name": "portfolio",
+            "writable": true,
+            "pda": {
+              "seeds": [
                 {
-                    "name": "owner",
-                    "writable": true,
-                    "signer": true,
-                    "relations": [
-                        "portfolio"
-                    ]
+                  "kind": "const",
+                  "value": [
+                    112,
+                    111,
+                    114,
+                    116,
+                    102,
+                    111,
+                    108,
+                    105,
+                    111
+                  ]
                 },
                 {
-                    "name": "portfolio",
-                    "writable": true,
-                    "pda": {
-                        "seeds": [
-                            {
-                                "kind": "const",
-                                "value": [
-                                    112,
-                                    111,
-                                    114,
-                                    116,
-                                    102,
-                                    111,
-                                    108,
-                                    105,
-                                    111
-                                ]
-                            },
-                            {
-                                "kind": "account",
-                                "path": "owner"
-                            }
-                        ]
-                    }
-                },
-                {
-                    "name": "system_program",
-                    "address": "11111111111111111111111111111111"
+                  "kind": "account",
+                  "path": "owner"
                 }
-            ],
-            "args": [
-                {
-                    "name": "amount_lamports",
-                    "type": "u64"
-                }
+              ]
+            }
+          }
+        ],
+        "args": [
+          {
+            "name": "new_strategy",
+            "type": {
+              "defined": {
+                "name": "Strategy"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "withdraw",
+        "discriminator": [
+          183,
+          18,
+          70,
+          156,
+          148,
+          109,
+          161,
+          34
+        ],
+        "accounts": [
+          {
+            "name": "owner",
+            "writable": true,
+            "signer": true,
+            "relations": [
+              "portfolio"
             ]
-        }
+          },
+          {
+            "name": "portfolio",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    112,
+                    111,
+                    114,
+                    116,
+                    102,
+                    111,
+                    108,
+                    105,
+                    111
+                  ]
+                },
+                {
+                  "kind": "account",
+                  "path": "owner"
+                }
+              ]
+            }
+          },
+          {
+            "name": "usdc_mint"
+          },
+          {
+            "name": "user_usdc",
+            "writable": true
+          },
+          {
+            "name": "vault",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    118,
+                    97,
+                    117,
+                    108,
+                    116
+                  ]
+                },
+                {
+                  "kind": "account",
+                  "path": "owner"
+                }
+              ]
+            }
+          },
+          {
+            "name": "token_program",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "system_program",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "args": [
+          {
+            "name": "amount_usdc",
+            "type": "u64"
+          }
+        ]
+      }
     ],
     "accounts": [
-        {
-            "name": "Portfolio",
-            "discriminator": [
-                94,
-                158,
-                71,
-                245,
-                122,
-                102,
-                110,
-                225
-            ]
-        }
+      {
+        "name": "Portfolio",
+        "discriminator": [
+          94,
+          158,
+          71,
+          245,
+          122,
+          102,
+          110,
+          225
+        ]
+      }
     ],
     "errors": [
-        {
-            "code": 6000,
-            "name": "ZeroAmount",
-            "msg": "Deposit amount must be greater than zero"
-        },
-        {
-            "code": 6001,
-            "name": "InsufficientFunds",
-            "msg": "Cannot withdraw more than deposited"
-        },
-        {
-            "code": 6002,
-            "name": "Overflow",
-            "msg": "Arithmetic overflow"
-        }
+      {
+        "code": 6000,
+        "name": "ZeroAmount",
+        "msg": "Deposit amount must be greater than zero"
+      },
+      {
+        "code": 6001,
+        "name": "InsufficientFunds",
+        "msg": "Cannot withdraw more than deposited"
+      },
+      {
+        "code": 6002,
+        "name": "Overflow",
+        "msg": "Arithmetic overflow"
+      },
+      {
+        "code": 6003,
+        "name": "WrongMint",
+        "msg": "Token mint must be USDC"
+      }
     ],
     "types": [
-        {
-            "name": "Portfolio",
-            "type": {
-                "kind": "struct",
-                "fields": [
-                    {
-                        "name": "owner",
-                        "type": "pubkey"
-                    },
-                    {
-                        "name": "strategy",
-                        "type": {
-                            "defined": {
-                                "name": "Strategy"
-                            }
-                        }
-                    },
-                    {
-                        "name": "amount_lamports",
-                        "docs": [
-                            "Total lamports deposited (mocked as SOL on devnet)"
-                        ],
-                        "type": "u64"
-                    },
-                    {
-                        "name": "last_deposit_at",
-                        "docs": [
-                            "Unix timestamp of last deposit"
-                        ],
-                        "type": "i64"
-                    },
-                    {
-                        "name": "deposit_count",
-                        "docs": [
-                            "Total number of deposits made"
-                        ],
-                        "type": "u32"
-                    },
-                    {
-                        "name": "bump",
-                        "type": "u8"
-                    }
-                ]
+      {
+        "name": "Portfolio",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "owner",
+              "type": "pubkey"
+            },
+            {
+              "name": "strategy",
+              "type": {
+                "defined": {
+                  "name": "Strategy"
+                }
+              }
+            },
+            {
+              "name": "amount_usdc",
+              "docs": [
+                "Total USDC deposited in raw units (6 decimals — divide by 1_000_000 for display)"
+              ],
+              "type": "u64"
+            },
+            {
+              "name": "last_deposit_at",
+              "docs": [
+                "Unix timestamp of last deposit"
+              ],
+              "type": "i64"
+            },
+            {
+              "name": "deposit_count",
+              "docs": [
+                "Total number of deposits made"
+              ],
+              "type": "u32"
+            },
+            {
+              "name": "bump",
+              "type": "u8"
             }
-        },
-        {
-            "name": "Strategy",
-            "type": {
-                "kind": "enum",
-                "variants": [
-                    {
-                        "name": "StableYield"
-                    },
-                    {
-                        "name": "Conservative"
-                    },
-                    {
-                        "name": "GrowthFocus"
-                    }
-                ]
-            }
+          ]
         }
+      },
+      {
+        "name": "Strategy",
+        "type": {
+          "kind": "enum",
+          "variants": [
+            {
+              "name": "StableYield"
+            },
+            {
+              "name": "Conservative"
+            },
+            {
+              "name": "GrowthFocus"
+            }
+          ]
+        }
+      }
     ]
-}
+  }

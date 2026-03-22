@@ -9,8 +9,14 @@ if (!projectId) {
   throw new Error('NEXT_PUBLIC_REOWN_PROJECT_ID is not set in environment variables')
 }
 
-export const networks = [solanaDevnet] as [
-  typeof solanaDevnet,
+const customDevnet = {
+  ...solanaDevnet,
+  currency: "USDC",
+  explorerUrl: "https://explorer.solana.com/?cluster=devnet",
+};
+
+export const networks = [customDevnet] as [
+  typeof customDevnet,
 ]
 
 export const metadata = {

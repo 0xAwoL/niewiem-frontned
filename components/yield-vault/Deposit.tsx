@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Strategies } from '@/components/yield-vault/Strategies'
 import { usePortfolio, StrategyId } from '@/hooks/usePortfolio'
+import { useUsdcBalance } from '@/hooks/useUsdcBalance'
 
 const getStrategyId = (s: string): StrategyId => {
   if (s === 'STABLE') return 'conservative'
@@ -13,6 +14,7 @@ export default function Deposit() {
   const [strategy, setStrategy] = useState('BALANCED')
   const [amount, setAmount] = useState('')
   const { deposit, loading, portfolio } = usePortfolio()
+  const usdcBalance = useUsdcBalance()
 
   const handleDeposit = async () => {
     if (!amount || isNaN(Number(amount))) return
@@ -27,7 +29,7 @@ export default function Deposit() {
   return (
     <div className="flex flex-col h-full bg-[#030303] w-full grow overflow-x-hidden">
       <div className="py-[8px] px-[16px] text-white uppercase border-b border-[#1a1a1a] flex justify-between items-center shrink-0 bg-[#050505]">
-        <span className="tracking-[1px] font-bold">DEPOSIT_SOL</span>
+        <span className="tracking-[1px] font-bold">DEPOSIT_USDC</span>
       </div>
 
       <div className="border-b border-[#1a1a1a] shrink-0 w-full flex flex-col items-start bg-[#030303]">
@@ -41,7 +43,7 @@ export default function Deposit() {
       <div className="p-[16px] border-b border-[#1a1a1a] bg-[#030303] shrink-0 flex flex-col gap-[8px]">
         <div className="text-[#444] uppercase flex justify-between w-full">
           <span>2. INPUT_AMOUNT</span>
-          <span>BAL: {portfolio ? portfolio.amountSol.toFixed(2) : '0.00'} SOL</span>
+          <span>BAL: {usdcBalance !== null ? usdcBalance.toFixed(2) : '0.00'} USDC</span>
         </div>
         <div className="flex bg-[#050505] border border-[#1a1a1a] focus-within:border-[#b0b0b0] transition-colors h-[32px]">
           <input
@@ -53,7 +55,7 @@ export default function Deposit() {
             className="bg-transparent border-none text-white p-[8px] w-full outline-none placeholder-[#444] font-mono h-full [-moz-appearance:_textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
           <div className="flex items-center px-[12px] h-full text-[#444] border-l border-[#1a1a1a] shrink-0">
-            SOL
+            USDC
           </div>
         </div>
       </div>

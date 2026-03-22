@@ -22,8 +22,15 @@ createAppKit({
     '--w3m-color-mix-strength': 15,
     '--w3m-border-radius-master': '0px'
   },
+  tokens: {
+    'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1': {
+      address: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+      image: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png'
+    }
+  },
   features: {
-    analytics: true
+    analytics: true,
+    swaps: true
   }
 })
 
